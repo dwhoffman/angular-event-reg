@@ -19,6 +19,45 @@ function main(argv) {
         'POST':createServlet(StaticServlet),
         'HEAD':createServlet(StaticServlet)
     }).start(Number(argv[2]) || DEFAULT_PORT);
+
+    console.log('Press any key to exit!');
+    //process.stdin.setRawMode(true);
+    process.stdin.resume();
+    
+    function exitHandler(options, err) {
+        if(options.keyPressed) {
+            var key = options.keyPressed;
+            if(key.length)
+                console.log('Key Pressed: ' + key);
+            else 
+                console.log('Non-Printable Key Pressed! ' + key);
+        }
+        
+        if(err && err != 'undefined' && err.length)
+            console.log('Uncaught Exception: ' + err);
+        
+        if(options.exit)  {
+            console.log('Shutting down the web server on PORT ' + DEFAULT_PORT);
+            process.exit((err != 'undefined' ? 1 : 0));
+        }
+    }
+
+    // do something when app is closing
+    process.on('exit', function() { 
+        //exitHandler({exit:true});
+    });
+    // catches Ctrl+C event
+    process.on('SIGINT', function() { 
+        exitHandler({exit:true});
+    });
+    // catches uncaught exceptions
+    process.on('uncaughtException', function(err) { 
+        exitHandler({exit:true}, err);
+    });
+    // exit when key is pressed
+    process.stdin.on('data', function(key) { 
+        exitHandler({exit:true, keyPressed: key});
+    });
 }
 
 function escapeHtml(value) {
@@ -82,6 +121,7 @@ HttpServer.prototype.handleRequest_ = function (req, res) {
  * Handles static content.
  */
 function StaticServlet() {
+
 }
 
 StaticServlet.MimeMap = {
@@ -119,15 +159,15 @@ StaticServlet.prototype.handleRequest = function (req, res) {
 }
 
 StaticServlet.prototype.findAndSendTarget = function(req, path, res, self) {
-util.puts(path);
-	fs.stat(path, function (err, stat) {
+    util.puts(path);
+    fs.stat(path, function (err, stat) {
         if (err && path.indexOf('app/') >= 0)
             return self.sendMissing_(req, res, path);
         else if (err) {
             if (path.indexOf('.json') == -1) {
                 return self.findAndSendTarget(req, path + ".json", res, self);
             } else if (!fs.fileExistsSync(path + ".json") && path.indexOf('/data/') != -1) {
-					self.sendMissing_(req, res, path);
+                self.sendMissing_(req, res, path);
             }
 			
             return self.sendDefault_(req, res);
@@ -146,7 +186,7 @@ util.puts(path);
             }
             return self.sendAllJsonFilesAppended_(req, res, path);
         }
-		if (!fs.fileExistsSync(path)) {
+        if (!fs.fileExistsSync(path)) {
             return self.sendMissing_(req, path, res);
         }
         return self.sendFile_(req, res, path);
@@ -234,8 +274,7 @@ StaticServlet.prototype.sendDefault_ = function (req, res) {
 
     var file = fs.createReadStream(path);
     res.writeHead(200, {
-        'Content-Type':StaticServlet.
-            MimeMap[path.split('.').pop()] || 'text/plain'
+        'Content-Type':StaticServlet.MimeMap[path.split('.').pop()] || 'text/plain'
     });
     if (req.method === 'HEAD') {
         res.end();
@@ -254,8 +293,7 @@ StaticServlet.prototype.sendFile_ = function (req, res, path) {
     var self = this;
     var file = fs.createReadStream(path);
     res.writeHead(200, {
-        'Content-Type':StaticServlet.
-            MimeMap[path.split('.').pop()] || 'text/plain'
+        'Content-Type':StaticServlet.MimeMap[path.split('.').pop()] || 'text/plain'
     });
     if (req.method === 'HEAD') {
         res.end();
@@ -292,7 +330,6 @@ StaticServlet.prototype.sendAllJsonFilesAppended_ = function (req, res, path) {
     self.writeSuccessHeader(res, path);
     res.write(results);
     res.end();
-
 };
 
 StaticServlet.prototype.writeFile_ = function (req, res, path) {
@@ -331,10 +368,10 @@ StaticServlet.prototype.writeFile_ = function (req, res, path) {
 
 StaticServlet.prototype.writeSuccessHeader = function (res, path) {
     res.writeHead(200, {
-        'Content-Type':StaticServlet.
-            MimeMap[path.split('.').pop()] || 'text/plain'
+        'Content-Type':StaticServlet.MimeMap[path.split('.').pop()] || 'text/plain'
     });
-}
+};
+
 StaticServlet.prototype.sendDirectory_ = function (req, res, path) {
     var self = this;
     if (path.match(/[^\/]$/)) {
